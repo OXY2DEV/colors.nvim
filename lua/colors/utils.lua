@@ -1,5 +1,23 @@
 local utils = {}
 
+utils.lerp = function (a, b, t, i)
+	if t > 1 then
+		t = 1 / t;
+	end
+
+	return a + (b - a) * t * (i or 1);
+end
+
+utils.getFg = function (colorTable)
+	local brightness = colorTable.r * 0.299 + colorTable.g * 0.587 + colorTable.b * 0.114;
+
+	if brightness > 160 then
+		return "#000000";
+	else
+		return "#FFFFFF";
+	end
+end
+
 ---+ Title: "Turns color tables to hex color codes"
 ---@param color { r: number, g: number, b: number } Table containing the color
 ---@return string # Hexadecimal color code

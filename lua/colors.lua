@@ -1,5 +1,5 @@
 local colors = {};
-local utils = require("utils");
+local utils = require("colors/utils");
 
 ---@class hl_opts Table that turns into a highlight group when used in "nvim_set_hl()"
 ---@field fg (string | number)? Foreground color
