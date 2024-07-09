@@ -1,4 +1,4 @@
 # 🎨 Colors.nvim
 
-Simple plugin to to handle highlight groups
+Simple plugin to handle highlight groups
 
