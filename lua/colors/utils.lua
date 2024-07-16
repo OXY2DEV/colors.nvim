@@ -1,122 +1,129 @@
-local utils = {}
+local utils = {};
 
-utils.lerp = function (a, b, t, i)
-	if t > 1 then
-		t = 1 / t;
+utils.clamp = function (val, min, max)
+	return math.min(math.max(val, min), max);
+end
+
+utils.num_to_hex = function (num)
+	return num and string.format("#%06x", num);
+end
+
+---@param hex string
+---@return { r: number, g: number, b: number }
+utils.hex_to_tbl = function (hex)
+	if type(hex) ~= "string" then
+		error("Malformed hex color code: " .. hex);
 	end
 
-	return a + (b - a) * t * (i or 1);
-end
+	hex = hex:gsub("#", "");
 
-utils.getFg = function (colorTable)
-	local brightness = colorTable.r * 0.299 + colorTable.g * 0.587 + colorTable.b * 0.114;
-
-	if brightness > 160 then
-		return "#000000";
-	else
-		return "#FFFFFF";
+	if #hex < 3 or #hex > 7 then
+		error("Malformed hex color code: " .. hex);
 	end
-end
-
----+ Title: "Turns color tables to hex color codes"
----@param color { r: number, g: number, b: number } Table containing the color
----@return string # Hexadecimal color code
-utils.toStr = function (color)
-	local R = #string.format("%x", color.r) == 1 and "0" .. string.format("%x", color.r) or string.format("%x", color.r);
-	local G = #string.format("%x", color.g) == 1 and "0" .. string.format("%x", color.g) or string.format("%x", color.g);
-	local B = #string.format("%x", color.b) == 1 and "0" .. string.format("%x", color.b) or string.format("%x", color.b);
-
-	return "#" .. R .. G .. B;
-end
----_
-
----+ Icon: " " Title: "rgb number to table converter" BorderL: " " BorderR: " "
---- @param color number Number returned by "nvim_get_hl()"
---- @return table # Table with r, g, b values
-utils.rgbToTable = function (color)
-	local hex = string.format("%x", color);
-
-	return {
-		r = tonumber(string.sub(hex, 1, 2), 16),
-		g = tonumber(string.sub(hex, 3, 4), 16),
-		b = tonumber(string.sub(hex, 5, 6), 16),
-	};
-end
---_
-
----+ Icon: " " Title: "hex color to table converter" BorderL: " " BorderR: " "
---- @param color string Hexadecimal color code
---- @return table
-utils.hexToTable = function (color)
-	local hex = string.gsub(color, "#", "");
 
 	if #hex == 3 then
 		return {
 			r = tonumber(string.sub(hex, 1, 1), 16),
 			g = tonumber(string.sub(hex, 2, 2), 16),
 			b = tonumber(string.sub(hex, 3, 3), 16),
-		};
-	else
+		}
+	elseif #hex == 6 then
 		return {
 			r = tonumber(string.sub(hex, 1, 2), 16),
 			g = tonumber(string.sub(hex, 3, 4), 16),
 			b = tonumber(string.sub(hex, 5, 6), 16),
-		};
-	end
-end
---_
-
----+ Icon: " " Title: "Do eased interpolation" BorderL: " " BorderR: " "
---- @param ease string The name of the easing function to use
---- @param from number Starting value
---- @param to number Final value
---- @param position number % position from the start value to the final value
---- @return number
-utils.ease = function(ease, from, to, position)
-	local easeValue = 0;
-
-	if ease == "linear" then
-		easeValue = position;
-	elseif ease == "ease-in-sine" then
-		easeValue = 1 - math.cos((position * math.pi) / 2);
-	elseif ease == "ease-out-sine" then
-		easeValue = math.sin((position * math.pi) / 2);
-	elseif ease == "ease-in-out-sine" then
-		easeValue = -(math.cos(position * math.pi) - 1) / 2;
-	elseif ease == "ease-in-quad" then
-		easeValue = position ^ 2;
-	elseif ease == "ease-out-quad" then
-		easeValue = 1 - ((1 - position) ^ 2);
-	elseif ease == "ease-in-out-quad" then
-		easeValue = position < 0.5 and 2 * (position ^ 2) or 1 - (((-2 * position + 2) ^ 2) / 2);
-	elseif ease == "ease-in-cubic" then
-		easeValue = position ^ 3;
-	elseif ease == "ease-out-cubic" then
-		easeValue = 1 - ((1 - position) ^ 3);
-	elseif ease == "ease-in-out-cubic" then
-		easeValue = position < 0.5 and 4 * (position ^ 3) or 1 - (((-2 * position + 2) ^ 3) / 2);
-	elseif ease == "ease-in-quart" then
-		easeValue = position ^ 4;
-	elseif ease == "ease-out-quart" then
-		easeValue = 1 - ((1 - position) ^ 4);
-	elseif ease == "ease-in-out-quart" then
-		easeValue = position < 0.5 and 8 * (position ^ 4) or 1 - (((-2 * position + 2) ^ 4) / 2);
-	elseif ease == "ease-in-quint" then
-		easeValue = position ^ 5;
-	elseif ease == "ease-out-quint" then
-		easeValue = 1 - ((1 - position) ^ 5);
-	elseif ease == "ease-in-out-quint" then
-		easeValue = position < 0.5 and 16 * (position ^ 5) or 1 - (((-2 * position + 2) ^ 5) / 2);
-	elseif ease == "ease-in-circ" then
-		easeValue = 1 - math.sqrt(1 - (position ^ 2));
-	elseif ease == "ease-out-circ" then
-		easeValue = math.sqrt(1 - ((position - 1) ^ 2));
-	elseif ease == "ease-in-out-circ" then
-		easeValue = position < 0.5 and (1 - math.sqrt(1 - ((2 * y) ^ 2))) / 2 or (math.sqrt(1 - ((-2 * y + 2) ^ 2)) + 1) / 2;
+		}
 	end
 
-	return from + ((to - from) * easeValue);
+	return { r = nil, g = nil, b = nil }
 end
---_
+
+utils.tbl_to_hex = function (tbl)
+	if not tbl or not tbl.r or not tbl.g or not tbl.b then
+		error("Incorrect table format");
+	end
+
+	return string.format("#%02x%02x%02x", tbl.r, tbl.g, tbl.b)
+end
+
+utils.get_value = function (config_table, value)
+	local hl = vim.api.nvim_get_hl(0, config_table);
+
+	if value == nil or value == "bg" then
+		return utils.hex_to_tbl(utils.num_to_hex(hl.bg or 0));
+	elseif value == "fg" then
+		return utils.hex_to_tbl(utils.num_to_hex(hl.fg or 0));
+	elseif value == "sp" then
+		return utils.hex_to_tbl(utils.num_to_hex(hl.sp or 0));
+	else
+		return hl[value];
+	end
+end
+
+utils.lerp = function (x, y, t)
+	if not x or not y or type(t) ~= "number" or t > 1 then
+		vim.print("Malformed lerp structure");
+		return;
+	end
+
+	return x + (y - x) * t;
+end
+
+utils.color_mix = function (col_1, col_2, amount_1, amount_2)
+	if not col_1 or not col_1.r or not col_1.g or not col_1.b then
+		error("Incorrect first color");
+	end
+
+	if not col_2 or not col_2.r or not col_2.g or not col_2.b then
+		error("Incorrect second color");
+	end
+
+	if type(amount_1) ~= "number" or amount_1 < 0 or amount_1 > 1 then
+		error("Ranges should be between 1 and 0, not " .. amount_1)
+	end
+
+	if type(amount_2) ~= "number" or amount_2 < 0 or amount_2 > 2 then
+		error("Ranges should be between 1 and 0, not " .. amount_2)
+	end
+
+	return utils.tbl_to_hex({
+		r = utils.clamp((col_1.r * amount_1) + (col_2.r * amount_2), 0, 255),
+		g = utils.clamp((col_1.g * amount_1) + (col_2.g * amount_2), 0, 255),
+		b = utils.clamp((col_1.b * amount_1) + (col_2.b * amount_2), 0, 255),
+	})
+end
+
+utils.rgb_to_hsl = function (color)
+	if not color or not color.r or not color.g or not color.b then
+		error("Incorrect RGB color");
+	end
+
+	local _r = color.r > 1 and color.r / 255 or color.r;
+	local _g = color.g > 1 and color.g / 255 or color.g;
+	local _b = color.b > 1 and color.b / 255 or color.b;
+
+	local min, max = math.min(_r, _g, _b), math.max(_r, _g, _b);
+
+	local _l = (min + max) / 2;
+	local _h, _s;
+
+	if min == max then
+		_s = 0;
+	elseif _l <= 0.5 then
+		_s = (max - min) / (max + min);
+	else
+		_s = (max - min) / (2 - (max + min));
+	end
+
+	if max == _r then
+		_h = (_g - _b) / (max - min)
+	elseif max == _g then
+		_h = 2 + ((_b - _r) / (max - min));
+	else
+		_h = 4 + ((_r - _g) / (max - min));
+	end
+
+	return { h = _h, s = _s, l = _l }
+end
 
 return utils;

@@ -1,304 +1,310 @@
 local colors = {};
-local utils = require("colors/utils");
+local utils = require("colors.utils");
 
----@class hl_opts Table that turns into a highlight group when used in "nvim_set_hl()"
----@field fg (string | number)? Foreground color
----@field bg (string | number)? Background color
----@field sp (string | number)?
----@field blend number? Opacity
----@field bold boolean? Makes the text bold
----@field italic boolean? Makes the text italic
----@field underline boolean? Adds underline to the text
----@field undercurl boolean? Adds a undercurl to the text, uses an underline when not supported by the terminal
----@field strikethrough boolean? Adds a strikethrough to the text
----@field link string? Highlight group to link to
+colors.configuraton = {
+	{
+		type = "dynamic",
 
----@class color Table containing configuration for highlight groups
----@field type string? Determines the type of color a table represents
----@field group_name string? Name of the highlight group, a "Bars_" prefix is added to the name
----@field value hl_opts? The settings for the specified highlight group
----@field name_prefix string? Prefix for the gradient, a "Bars_" prefix is added before the name and a number is added after it. Always starts from 0
----@field from string? The start color for the gradient
----@field to string? The stop color for the gradient
----@field steps number? The number of steps the gradient has
+		value = function (helper)
+			local from = helper.get_value({ name = "Title" }, "fg");
+			local to = helper.get_value({ name = "Comment" }, "fg");
 
----@class color_user_config Configuration table structure for the setup function
----@field default color[] Default configuration table
----@field [string] color[] Various colorscheme specific configurations
+			local _o = {
+				{
+					group_name = "Glow_0",
+					value = { fg = helper.tbl_to_hex(from) }
+				}
+			};
 
----@type hl_opts[] Cached highlight group
-colors.hls = {};
+			for i = 2, 8 do
+				local amount = i / 8;
 
----@type table<string, color[]> Default colors
-colors.default_config = {
-	default = {
-		-- For the statuscolumn
-		{
-			type = "gradient",
+				table.insert(_o, {
+					group_name = "Glow_" .. (i - 1),
+					value = {
+						fg = helper.color_mix(to, from, amount, 1 - amount)
+					}
+				})
+			end
 
-			name_prefix = "Glow_",
-			from = "#6583b6", to = "#585B70",
-			steps = 8
-		},
-		{
-			type = "gradient",
+			return _o;
+		end
+	},
+	{
+		type = "dynamic",
+		value = function (helper)
+			local _o = {};
+			local bg = helper.get_value({ name = "Normal" });
 
-			name_prefix = "Glow_num_",
-			from = "#89B4FA", to = "#585B70",
-			steps = 10
-		},
+			for r = 1, 6 do
+				local color = helper.get_value({ name = "rainbow" .. r }, "fg");
 
-		{
-			type = "normal",
-			group_name = "fold_1",
-			value = { fg = "#58709D" }
-		},
-		{
-			type = "normal",
-			group_name = "fold_2",
-			value = { fg = "#68896D" }
-		},
-		{
-			type = "normal",
-			group_name = "fold_3",
-			value = { fg = "#925971" }
-		},
+				if bg ~= nil then
+					table.insert(_o, {
+						group_name = "rainbow" .. r .. "_dark",
+						value = {
+							fg = helper.color_mix(bg, color, 0.6, 0.4)
+						}
+					})
+				else
+					table.insert(_o, {
+						group_name = "rainbow" .. r .. "_dark",
+						value = {
+							fg = helper.tbl_to_hex(color)
+						}
+					})
+				end
+			end
 
-		{
-			type = "normal",
-			group_name = "fold_1_open",
-			value = { fg = "#3B4766" }
-		},
-		{
-			type = "normal",
-			group_name = "fold_2_open",
-			value = { fg = "#4F6658" }
-		},
-		{
-			type = "normal",
-			group_name = "fold_3_open",
-			value = { fg = "#6B465A" }
-		},
+			return _o;
+		end
+	},
+	{
+		type = "dynamic",
+		value = function (helper)
+			local _o = {};
+			local fgs = {
+				mode_normal = helper.get_value({ name = "Function" }, "fg"),
+				mode_insert = helper.get_value({ name = "Normal" }, "fg"),
+				mode_visual = helper.get_value({ name = "Conditional" }, "fg"),
+				mode_visual_block = helper.get_value({ name = "Special" }, "fg"),
+				mode_visual_line = helper.get_value({ name = "rainbow2" }, "fg"),
+				mode_cmd = helper.get_value({ name = "rainbow4" }, "fg")
+			};
+			local bgs = {
+				mode_normal = helper.get_value({ name = "Normal" }, "bg"),
+				mode_insert = helper.get_value({ name = "Normal" }, "bg"),
+				mode_visual = helper.get_value({ name = "Normal" }, "bg"),
+				mode_visual_block = helper.get_value({ name = "Normal" }, "bg"),
+				mode_visual_line = helper.get_value({ name = "Normal" }, "bg"),
+				mode_cmd = helper.get_value({ name = "Normal" }, "bg")
+			};
+			local buf_bg = helper.get_value({ name = "Normal" });
 
-		-- For the statusline
-		{
-			type = "normal",
-			group_name = "mode_normal",
-			value = { fg = "#89B4FA", bg = "#313244" }
-		},
-		{
-			type = "normal",
-			group_name = "mode_normal_alt",
-			value = { bg = "#89B4FA", fg = "#1E1E2E" }
-		},
 
-		{
-			type = "normal",
-			group_name = "mode_insert",
-			value = { fg = "#BAC2DE", bg = "#313244" }
-		},
-		{
-			type = "normal",
-			group_name = "mode_insert_alt",
-			value = { bg = "#BAC2DE", fg = "#1E1E2E" }
-		},
+			for name, value in pairs(fgs) do
+				table.insert(_o, {
+					group_name = name,
+					value = {
+						fg = helper.tbl_to_hex(value),
+						bg = helper.color_mix(buf_bg, buf_bg, 1, 0.75),
+					}
+				});
 
-		{
-			type = "normal",
-			group_name = "mode_visual",
-			value = { fg = "#CBA6F7", bg = "#313244" }
-		},
-		{
-			type = "normal",
-			group_name = "mode_visual_alt",
-			value = { bg = "#CBA6F7", fg = "#1E1E2E" }
-		},
-		{
-			type = "normal",
-			group_name = "mode_visual_block",
-			value = { fg = "#EBA0AC", bg = "#313244" }
-		},
-		{
-			type = "normal",
-			group_name = "mode_visual_block_alt",
-			value = { bg = "#EBA0AC", fg = "#1E1E2E" }
-		},
-		{
-			type = "normal",
-			group_name = "mode_visual_line",
-			value = { fg = "#FAB387", bg = "#313244" }
-		},
-		{
-			type = "normal",
-			group_name = "mode_visual_line_alt",
-			value = { bg = "#FAB387", fg = "#1E1E2E" }
-		},
+				table.insert(_o, {
+					group_name = name .. "_alt",
+					value = {
+						fg = helper.tbl_to_hex(bgs[name]),
+						bg = helper.tbl_to_hex(value)
+					}
+				})
+			end
 
-		{
-			type = "normal",
-			group_name = "mode_cmd",
-			value = { fg = "#A6E3A1", bg = "#313244" }
-		},
-		{
-			type = "normal",
-			group_name = "mode_cmd_alt",
-			value = { bg = "#A6E3A1", fg = "#1E1E2E" }
-		},
+			return _o;
+		end
+	},
+	{
+		type = "dynamic",
+		value = function (helper)
+			local bg = helper.get_value({ name = "Normal" });
+			local fg = helper.get_value({ name = "Normal" }, "fg");
 
-		{
-			type = "normal",
-			group_name = "buf_name",
-			value = { bg = "#313244" }
-		},
-		{
-			type = "normal",
-			group_name = "buf_name_alt",
-			value = { fg = "#313244", bg = "#1E1E2E" }
-		},
+			return {
+				{
+					group_name = "buf_name",
+					value = {
+						bg = helper.color_mix(bg, bg, 1, 0.75),
+						fg = helper.tbl_to_hex(fg),
+					}
+				},
+				{
+					group_name = "buf_name_alt",
+					value = {
+						fg = helper.color_mix(bg, bg, 1, 0.75),
+					}
+				},
+			}
+		end
+	},
+	{
+		type = "dynamic",
+		value = function (helper)
+			local default_bg = helper.get_value({ name = "Normal" });
+			local bg = helper.get_value({ name = "Conditional" }, "fg");
 
-		{
-			type = "normal",
-			group_name = "cursor_position",
-			value = { bg = "#CBA6F7", fg = "#1E1E2E" }
-		},
-		{
-			type = "normal",
-			group_name = "cursor_position_alt",
-			value = { fg = "#CBA6F7", bg = "#1E1E2E" }
-		},
+			return {
+				{
+					group_name = "cursor_position",
+					value = {
+						bg = helper.tbl_to_hex(bg),
+						fg = helper.tbl_to_hex(default_bg)
+					}
+				},
+				{
+					group_name = "cursor_position_alt",
+					value = {
+						fg = helper.tbl_to_hex(bg)
+					}
+				},
+			};
+		end
+	},
+	{
+		type = "hl",
+		group_name = "Folded",
+		value = { fg = "#89B4FA" }
+	},
+	{
+		type = "dynamic",
+		value = function (helper)
+			local bg = helper.get_value({ name = "Normal" });
+			local fg = helper.get_value({ name = "Normal" }, "fg");
 
-		-- For the tabline
-		{
-			type = "normal",
-			group_name = "tabline_tab_active",
-			value = { fg = "#B4BEFE" }
-		},
-		{
-			type = "normal",
-			group_name = "tabline_tab_active_alt",
-			value = { bg = "#B4BEFE", fg = "#1E1E2E" }
-		},
+			local buf_mix_col = helper.get_value({ name = "rainbow4" }, "fg");
+			local tab_mix_col = helper.get_value({ name = "rainbow5" }, "fg");
 
-		{
-			type = "normal",
-			group_name = "tabline_tab_inactive",
-			value = { fg = "#313244" }
-		},
-		{
-			type = "normal",
-			group_name = "tabline_tab_inactive_alt",
-			value = { bg = "#313244" }
-		},
+			return {
+				{
+					group_name = "tabline_buf_inactive_alt",
+					value = {
+						bg = helper.color_mix(bg, bg, 1, 0.75),
+						fg = helper.tbl_to_hex(fg),
+					}
+				},
+				{
+					group_name = "tabline_buf_inactive",
+					value = {
+						fg = helper.color_mix(bg, bg, 1, 0.75),
+					}
+				},
+				{
+					group_name = "tabline_buf_active_alt",
+					value = {
+						bg = helper.color_mix(buf_mix_col, fg, 0.80, 0.15),
+						fg = helper.tbl_to_hex(bg),
+					}
+				},
+				{
+					group_name = "tabline_buf_active",
+					value = {
+						fg = helper.color_mix(buf_mix_col, fg, 0.80, 0.15),
+					}
+				},
 
-		{
-			type = "normal",
-			group_name = "tabline_buf_active",
-			value = { fg = "#45475A" }
-		},
-		{
-			type = "normal",
-			group_name = "tabline_buf_active_alt",
-			value = { bg = "#45475A" }
-		},
-
-		{
-			type = "normal",
-			group_name = "tabline_buf_inactive",
-			value = { fg = "#313244" }
-		},
-		{
-			type = "normal",
-			group_name = "tabline_buf_inactive_alt",
-			value = { bg = "#313244" }
-		},
-	};
+				{
+					group_name = "tabline_tab_inactive_alt",
+					value = {
+						bg = helper.color_mix(bg, bg, 1, 0.75),
+						fg = helper.tbl_to_hex(fg),
+					}
+				},
+				{
+					group_name = "tabline_tab_inactive",
+					value = {
+						fg = helper.color_mix(bg, bg, 1, 0.75),
+					}
+				},
+				{
+					group_name = "tabline_tab_active_alt",
+					value = {
+						bg = helper.color_mix(tab_mix_col, fg, 0.70, 0.25),
+						fg = helper.tbl_to_hex(bg),
+					}
+				},
+				{
+					group_name = "tabline_tab_active",
+					value = {
+						fg = helper.color_mix(tab_mix_col, fg, 0.70, 0.25),
+					}
+				},
+			}
+		end
+	}
 };
 
---- Setup function for the colors
----@param color_config color_user_config? User configuration table
-colors.setup = function (color_config)
-	---@type color_user_config
-	local use_config = vim.tbl_deep_extend("force", colors.default_config, color_config or {});
-
-	for colorscheme, values in pairs(use_config) do
-		for _, color in ipairs(values) do
-			if color.type == "normal" or color.type == nil then
-				if vim.g.colors_name == colorscheme then
-					vim.api.nvim_set_hl(0, color.group_name, color.value);
-				elseif colorscheme == "default" then
-					vim.api.nvim_set_hl(0, color.group_name, color.value);
-				end
-
-				if colors.hls[color.group_name] == nil then
-					colors.hls[color.group_name] = {};
-				end
-
-				colors.hls[color.group_name][colorscheme] = color.value;
-			elseif color.type == "gradient" then
-				local from = type(color.from) == "string" and utils.hexToTable(color.from) or color.from;
-				local to = type(color.to) == "string" and utils.hexToTable(color.to) or color.to;
-
-				for gr = 0, color.steps - 1 do
-					local _r = utils.ease(color.ease or "linear", from.r, to.r, gr * (1 / (color.steps - 1)));
-					local _g = utils.ease(color.ease or "linear", from.g, to.g, gr * (1 / (color.steps - 1)));
-					local _b = utils.ease(color.ease or "linear", from.b, to.b, gr * (1 / (color.steps - 1)));
-
-					local val = utils.toStr({ r = _r, g = _g, b = _b });
-
-					if color.mode == "fg" or color.mode == nil then
-						if vim.g.colors_name == colorscheme then
-							vim.api.nvim_set_hl(0, color.name_prefix .. gr, { fg = val });
-						elseif colorscheme == "default" then
-							vim.api.nvim_set_hl(0, color.name_prefix .. gr, { fg = val });
-						end
-
-						if colors.hls[color.name_prefix .. gr] == nil then
-							colors.hls[color.name_prefix .. gr] = {};
-						end
-
-						colors.hls[color.name_prefix .. gr][colorscheme] = { fg = val };
-					elseif color.mode == "bg" then
-						if vim.g.colors_name == colorscheme then
-							vim.api.nvim_set_hl(0, color.name_prefix .. gr, { bg = val });
-						elseif colorscheme == "default" then
-							vim.api.nvim_set_hl(0, color.name_prefix .. gr, { bg = val });
-						end
-
-						if colors.hls[color.name_prefix .. gr] == nil then
-							colors.hls[color.name_prefix .. gr] = {};
-						end
-
-						colors.hls[color.name_prefix .. gr][colorscheme] = { bg = val };
-					elseif color.mode == "both" then
-						if vim.g.colors_name == colorscheme then
-							vim.api.nvim_set_hl(0, color.name_prefix .. gr, { fg = val, bg = val });
-						elseif colorscheme == "default" then
-							vim.api.nvim_set_hl(0, color.name_prefix .. gr, { fg = val, bg = val });
-						end
-
-						if colors.hls[color.name_prefix .. gr] == nil then
-							colors.hls[color.name_prefix .. gr] = {};
-						end
-
-						colors.hls[color.name_prefix .. gr][colorscheme] = { fg = val, bg = val };
-					end
-				end
-			end
-		end
+colors.hl_applier = function (config_table)
+	if type(config_table.group_name) ~= "string" or type(config_table.value) ~= "table" then
+		return;
 	end
 
-	vim.api.nvim_create_autocmd({ "ColorScheme" }, {
-		pattern = "*",
-		callback = function ()
-			for name, value in pairs(colors.hls) do
-				if use_config[vim.g.colors_name] ~= nil then
-					vim.api.nvim_set_hl(0, name, value[vim.g.colors_name]);
-				else
-					vim.api.nvim_set_hl(0, name, value["default"]);
-				end
-			end
+	vim.api.nvim_set_hl(0, config_table.group_name, config_table.value)
+end
+
+colors.gradient_applier = function (config_table)
+	if  not config_table or not config_table.from or not config_table.to then
+		error("Malformed gradient inputs");
+	end
+
+	local from = utils.hex_to_tbl(config_table.from);
+	local to = utils.hex_to_tbl(config_table.to);
+
+	local _g = { from };
+	local ease = config_table.ease and pcall(config_table.ease) and config_table.ease or utils.lerp;
+
+	for i = 1, config_table.steps and config_table.steps - 1 or 10 do
+		table.insert(_g, {
+			r = ease(from.r, to.r, i / (config_table.steps and config_table.steps - 1 or 10)),
+			g = ease(from.g, to.g, i / (config_table.steps and config_table.steps - 1 or 10)),
+			b = ease(from.b, to.b, i / (config_table.steps and config_table.steps - 1 or 10)),
+		})
+	end
+
+	for i, color in ipairs(_g) do
+		local _hl = {};
+
+		if not config_table.mode or config_table.mode == "fg" then
+			_hl.fg = utils.tbl_to_hex(color);
 		end
-	});
+
+		if config_table.mode == "bg" then
+			_hl.bg = utils.tbl_to_hex(color);
+		end
+
+		vim.api.nvim_set_hl(0, (config_table.prefix or "Colors") .. i, _hl);
+	end
+end
+
+colors.render_dynamic_color = function (config_table)
+	if not config_table.value or not pcall(config_table.value, utils) then
+		error("Invalid dynamic highlight group");
+	end
+
+	local _hl = config_table.value(utils);
+
+	if vim.islist(_hl) then
+		for _, color in ipairs(_hl) do
+			vim.api.nvim_set_hl(0, color.group_name, color.value);
+		end
+	elseif type(_hl) == "table" and _hl.group_name and _hl.value then
+		vim.api.nvim_set_hl(0, _hl.group_name, _hl.value);
+	end
+end
+
+colors.init = function ()
+	for _, color in ipairs(colors.configuraton) do
+		if color.type == "hl" then
+			colors.hl_applier(color);
+		elseif color.type == "gradient" then
+			colors.gradient_applier(color);
+		elseif color.type == "dynamic" then
+			colors.render_dynamic_color(color);
+		end
+	end
+end
+
+colors.setup = function (config_table)
+	colors.configuraton = vim.list_extend(colors.configuraton, config_table or {});
+	colors.init();
+
+	if not colors.created_autocmd then
+		vim.api.nvim_create_autocmd({ "Colorscheme" }, {
+			callback = function ()
+				colors.init();
+			end
+		})
+
+		colors.created_autocmd = true;
+	end
 end
 
 return colors;
